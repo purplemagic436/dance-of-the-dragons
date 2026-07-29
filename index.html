@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dance of the Dragons</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #111;
+        color: #eee;
+        margin: 0;
+        padding: 20px;
+    }
+    h1, h2, h3 {
+        text-align: center;
+        color: #d4af37;
+    }
+    .controls {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+    .controls button {
+        padding: 10px 20px;
+        font-size: 1em;
+        background-color: #444;
+        border: 1px solid #d4af37;
+        color: white;
+        cursor: pointer;
+    }
+    .controls button:hover {
+        background-color: #555;
+    }
+    .dashboard {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        background: #222;
+        padding: 15px;
+        border: 1px solid #444;
+        gap: 10px;
+    }
+    .faction {
+        flex: 1;
+        padding: 10px;
+        border-radius: 5px;
+    }
+    .blacks {
+        background-color: #1a1a1a;
+        border: 2px solid #8b0000;
+    }
+    .neutral-faction {
+        background-color: #1a1a1a;
+        border: 2px solid #555;
+    }
+    .greens {
+        background-color: #0f291e;
+        border: 2px solid #d4af37;
+    }
+    .stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        font-size: 0.9em;
+        margin-bottom: 10px;
+    }
+    .map-container {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+    .region {
+        padding: 8px;
+        font-size: 0.8em;
+        font-weight: bold;
+        border-radius: 3px;
+        text-align: center;
+        color: white;
+    }
+    .region.black { background-color: #8b0000; }
+    .region.green { background-color: #2e8b57; }
+    .region.neutral { background-color: #555; }
+    .story-box {
+        background-color: #222;
+        padding: 20px;
+        border: 1px solid #d4af37;
+        margin-bottom: 20px;
+        line-height: 1.6;
+    }
+    .choices-box {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .choice-btn {
+        background-color: #333;
+        color: #fff;
+        border: 1px solid #d4af37;
+        padding: 15px;
+        text-align: left;
+        cursor: pointer;
+        font-size: 1em;
+        transition: background-color 0.2s;
+    }
+    .choice-btn:hover {
+        background-color: #444;
+    }
+    .effect-text {
+        font-size: 0.8em;
+        color: #aaa;
+        display: block;
+        margin-top: 5px;
+    }
+</style>
+</head>
+<body>
+
+<h1>The Dance of the Dragons</h1>
+<div class="controls">
+    <button onclick="newGame()">New Game</button>
+    <button onclick="saveGame()">Save Game</button>
+    <button onclick="loadGame()">Load Game</button>
+</div>
+<h3 id="time-display">Year: 129 AC | Month: 1</h3>
+
+<div class="dashboard">
+    <div class="faction blacks">
+        <h2>The Blacks</h2>
+        <div class="stats" id="blacks-stats"></div>
+        <div class="map-container" id="blacks-map"></div>
+    </div>
+    <div class="faction neutral-faction">
+        <h2>Neutral / Undeclared</h2>
+        <div class="map-container" id="neutral-map"></div>
+    </div>
+    <div class="faction greens">
+        <h2>The Greens</h2>
+        <div class="stats" id="greens-stats"></div>
+        <div class="map-container" id="greens-map"></div>
+    </div>
+</div>
+
+<div class="story-box" id="story-text"></div>
+<div class="choices-box" id="choices-container"></div>
+
+<script>
+	const territoryStats = {
+        "Dragonstone": { troops: 2000, ships: 40, gold: 150000, smallfolk: 30000 },
+        "Oldtown": { troops: 20000, ships: 60, gold: 1500000, smallfolk: 400000 },
+        "The North": { troops: 30000, ships: 15, gold: 200000, smallfolk: 1000000 },
+        "The Vale": { troops: 35000, ships: 30, gold: 400000, smallfolk: 1200000 },
+        "The Westerlands": { troops: 45000, ships: 40, gold: 3000000, smallfolk: 1500000 },
+        "The Reach": { troops: 60000, ships: 60, gold: 2000000, smallfolk: 2500000 },
+        "The Stormlands": { troops: 30000, ships: 25, gold: 300000, smallfolk: 800000 },
+        "The Riverlands": { troops: 35000, ships: 10, gold: 250000, smallfolk: 1100000 },
+        "The Iron Islands": { troops: 20000, ships: 400, gold: 100000, smallfolk: 400000 },
+        "King's Landing": { troops: 12000, ships: 40, gold: 800000, smallfolk: 500000 },
+        "Driftmark": { troops: 4000, ships: 150, gold: 4000000, smallfolk: 60000 },
+        "Harrenhal": { troops: 6000, ships: 0, gold: 80000, smallfolk: 150000 }
+    };
+
+	const initialState = {
+        year: 129,
+        month: 1,
+        blacks: {
+            dragons: 13,
+            riders: 7,
+            troops: 2000,
+            ships: 40,
+            gold: 150000,
+            smallfolk: 30000,
+            territories: ["Dragonstone"]
+        },
+        greens: {
+            dragons: 4,
+            riders: 4,
+            troops: 20000,
+            ships: 60,
+            gold: 1500000,
+            smallfolk: 400000,
+            territories: ["Oldtown"]
+        },
+        neutralTerritories: ["King's Landing", "Driftmark", "The North", "The Vale", "The Riverlands", "The Westerlands", "The Reach", "The Stormlands", "The Iron Islands"]
+    };
+	
+    let state = JSON.parse(JSON.stringify(initialState));
+    let currentSceneId = 'start';
+
+    const scenes = {
+start: {
+            text: "King Viserys is decaying before your eyes. Tonight is the grand dinner. He has plead with you, Rhaenyra, and Queen Alicent to set aside your grievances. The air is thick with tension. Aegon is drinking heavily, Aemond is glaring at your sons, and Otto Hightower watches every movement. The King raises his cup, asking for peace. As the leader of the Blacks, you must decide your posture.",
+            choices: [
+                {
+                    text: "Raise your cup and give a genuine toast to Alicent, ordering your sons to make amends with Aemond.",
+                    effects: "Effects: +50,000 Smallfolk support, -10,000 Gold. Advances time 0 months.",
+                    timeAdvance: 0,
+                    impact: { type: 'blacks', smallfolk: 50000, gold: -10000 },
+                    next: "dinner_marriage_proposal"
+                },
+                {
+                    text: "Remain silent and cold. You are the heir, and they are usurpers in waiting.",
+                    effects: "Effects: +1,000 Troops, -20,000 Smallfolk. Advances time 0 months.",
+                    timeAdvance: 0,
+                    impact: { type: 'blacks', troops: 1000, smallfolk: -20000 },
+                    next: "post_dinner_tense"
+                }
+            ]
+        },
+dinner_marriage_proposal: {
+            text: "Your toast warms the King's dying heart. Alicent smiles back, creating a rare moment of genuine warmth. Viserys is moved to tears, wishing this peace would last. Seizing the moment, you propose a betrothal between your son Aegon the Younger and Aegon II's daughter, Jaehaera. Viserys is ecstatic, but Otto Hightower immediately opens his mouth to object. Before he can speak, you deftly suggest adjourning to the council chambers to finalize the terms in private, explicitly requesting that only the King, Alicent, Aegon, and the Grand Maester attend.",
+            choices: [
+                {
+                    text: "Adjourn to the council chambers for private deliberations, leaving Otto and Ser Criston behind.",
+                    effects: "Effects: Isolate Alicent and Aegon from their advisors. Advances time 0 months.",
+                    timeAdvance: 0,
+                    impact: { type: 'blacks', gold: 0 },
+                    next: "private_succession_meeting"
+                },
+                {
+                    text: "Withdraw the proposal and leave well enough alone. The toast was enough.",
+                    effects: "Effects: The dinner concludes normally. Advances time 0 months.",
+                    timeAdvance: 0,
+                    impact: { type: 'blacks', gold: 0 },
+                    next: "post_dinner_peace"
+                }
+            ]
+        },
+private_succession_meeting: {
+            text: "Inside the quiet council chambers, away from Otto's scheming and Cole's glare, the political atmosphere shifts entirely. Aegon looks bored but visibly relieved when you mention a life of absolute leisure. Alicent is highly emotional but fiercely protective of her grandchildren's safety. Grand Maester Orwyle stands ready with parchment. You present the terms cleanly: your line inherits the throne first, followed sequentially by Aegon, Helaena, Aemond, and Daeron. In exchange, Aegon receives a magnificent stipend, and his chief instigators are permanently removed from court.",
+            choices: [
+                {
+                    text: "Command the Grand Maester to draw up the formal Decree of Royal Concord and Rightful Succession.",
+                    effects: "Effects: Greens lose 2 Dragons and 2 Riders (Aegon and Helaena stand down). Greens lose -5,000 Troops. +20,000 Smallfolk support. Advances time 0 months.",
+                    timeAdvance: 0,
+                    impact: { type: 'mixed', g_dragons: -2, g_riders: -2, g_troops: -5000, b_smallfolk: 20000 },
+                    setFlag: "aegon_surrendered",
+                    next: "conclude_royal_decree"
+                }
+            ]
+        },
+conclude_royal_decree: {
+            text: "The Grand Maester drafts the document. It codifies Rhaenyra as the successor, establishes the multi-tiered line of inheritance, and strips Otto and Criston of their offices. Aegon signs with a grin, eager for his golden cage. Alicent signs with a sigh of relief. The King presses his seal into the wax. Before dawn, Otto Hightower is escorted to the city gates. However, as the council dismisses, Daemon corners you in the hallway. His eyes are cold as ice. He notes that while the Hightowers are neutralized, your older sons still block his own boys from the throne. He subtly threatens to back the whispers of bastardry unless you grant his branch of the family immediate, sweeping authority.",
+            choices: [
+                {
+                    text: "Reaffirm Jacaerys as your rightful heir and fiercely warn Daemon that any talk of bastardry is high treason.",
+                    effects: "Effects: Daemon is alienated. He leaves the capital for Harrenhal to brood, losing you -1 Dragon and -1 Rider from the capital defense, and he begins quietly plotting against your older sons. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'blacks', dragons: -1, riders: -1 },
+                    setFlag: "daemon_alienated",
+                    next: "viserys_death_decree_enraged"
+                },
+                {
+                    text: "Compromise to keep him quiet: name Daemon Hand of the King and elevate his daughter Baela's status as the future Queen beside Jacaerys.",
+                    effects: "Effects: Keep Daemon loyal at court. Reaffirms his bloodline on the throne via Baela. Costs 30,000 Gold in future political payoffs to secure the arrangements. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'blacks', gold: -30000 },
+                    next: "viserys_death_decree_appeased"
+                }
+            ]
+        },
+        viserys_death_decree_appeased: {
+            text: "King Viserys passes away peacefully in his sleep. Your succession is entirely seamless. You ascend the Iron Throne without a drop of blood spilled in the city streets, with Daemon standing proudly at your side as Hand of the King and Protector of the Realm. However, dark ravens arrive: Prince Aemond fled the capital on Vhagar the moment the decree was signed. In Oldtown, he has declared Aegon's signature null due to coercion. The remaining Greens have crowned Aemond as a rival king, rallying the Westerlands and the Hightower host to his banner.",
+            choices: [
+                {
+                    text: "Summon the Black Council to plan your response to Aemond's rebellion.",
+                    effects: "Effects: Blacks secure King's Landing and Driftmark resources. Daemon remains at court. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'blacks', gold: 0 },
+                    territoryChanges: { blacks: ["King's Landing", "Driftmark"], removeNeutral: ["King's Landing", "Driftmark"] },
+                    next: "black_council_diplomacy"
+                }
+            ]
+        },
+        viserys_death_decree_enraged: {
+            text: "King Viserys passes away peacefully in his sleep. You ascend the Iron Throne, but the atmosphere in the Red Keep is tense and hollow. Daemon has abandoned the capital, taking Caraxes to Harrenhal and leaving you politically isolated. Sensing your vulnerability, Prince Aemond flies Vhagar to Oldtown, declares the succession decree a farce signed under duress, and crowns himself rival king. The Westerlands and the Reach immediately mobilize to back his claim, knowing the Rogue Prince is not there to defend your skies.",
+            choices: [
+                {
+                    text: "Secure the capital assets and send ravens to Daemon demanding his return.",
+                    effects: "Effects: Blacks secure King's Landing and Driftmark resources, but face an immediate threat without Caraxes nearby. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'blacks', gold: 0 },
+                    territoryChanges: { blacks: ["King's Landing", "Driftmark"], removeNeutral: ["King's Landing", "Driftmark"] },
+                    next: "black_council_diplomacy"
+                }
+            ]
+        },
+        post_dinner_peace: {
+            text: "The dinner has concluded. Viserys is carried off to his bed, breathing heavily and deeply fatigued. The hour grows late. You must decide whether to remain in the capital or return to your seat of power.",
+            choices: [
+                {
+                    text: "Board your ships and return to Dragonstone tonight. You have been away for too long.",
+                    effects: "Effects: Safely relocate to Dragonstone. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'blacks', gold: 0 },
+                    next: "viserys_death_away"
+                },
+                {
+                    text: "Remain in the Red Keep. The King is frail, and you must be present to secure your succession.",
+                    effects: "Effects: You are physically present in the capital. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'blacks', gold: 0 },
+                    next: "viserys_death_kl"
+                }
+            ]
+        },
+        post_dinner_tense: {
+            text: "The dinner was a disaster, ending with bared steel before the Kingsguard intervened. Viserys is carried off to his bed in despair. The hour grows late, and the Red Keep feels distinctly hostile.",
+            choices: [
+                {
+                    text: "Flee to Dragonstone immediately. The capital is no longer safe.",
+                    effects: "Effects: Safely relocate to Dragonstone. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'blacks', gold: 0 },
+                    next: "viserys_death_away"
+                },
+                {
+                    text: "Fortify your chambers in the Red Keep. You will not be chased out of your own inheritance.",
+                    effects: "Effects: You are physically present in the capital. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'blacks', gold: 0 },
+                    next: "viserys_death_kl"
+                }
+            ]
+        },        
+        viserys_death_away: {
+            text: "You arrive safely at Dragonstone. Days later, a smuggled raven arrives bearing dark news: King Viserys is dead. Otto Hightower and the Green Council moved swiftly, crowning Aegon in the Dragonpit and seizing control of the Crownlands. Shortly after, Corlys Velaryon arrives at Dragonstone, formally pledging the Driftmark fleet to your cause.",
+            choices: [
+                {
+                    text: "Crown yourself Queen on Dragonstone and summon the Black Council.",
+                    effects: "Effects: Blacks gain Driftmark resources. Greens gain King's Landing resources. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'blacks', gold: 0 },
+                    territoryChanges: { blacks: ["Driftmark"], greens: ["King's Landing"], removeNeutral: ["Driftmark", "King's Landing"] },
+                    next: "black_council_diplomacy"
+                }
+            ]
+        },
+        viserys_death_kl: {
+            text: "You are awakened in the dead of night by a loyal servant. King Viserys has died. The servant warns you that the Green Council is meeting in secret right now to crown Aegon, and Ser Criston Cole is marching with the Kingsguard to arrest you and your family.",
+            choices: [
+                {
+                    text: "Gather your family, mount your dragons in the pit, and burst out of the capital to Dragonstone.",
+                    effects: "Effects: Escape safely. Blacks gain Driftmark resources. Greens secure King's Landing resources. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'blacks', gold: 0 },
+                    territoryChanges: { blacks: ["Driftmark"], greens: ["King's Landing"], removeNeutral: ["Driftmark", "King's Landing"] },
+                    next: "black_council_diplomacy"
+                },
+                {
+                    text: "Awaken Daemon and your sworn shields. March on the council chambers to arrest the traitors immediately.",
+                    effects: "Effects: Bloody skirmish. -500 Black Troops. Greens lose -2000 Troops. Retreat to Dragonstone. Greens secure King's Landing. Blacks gain Driftmark. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'mixed', b_troops: -500, g_troops: -2000 },
+                    territoryChanges: { blacks: ["Driftmark"], greens: ["King's Landing"], removeNeutral: ["Driftmark", "King's Landing"] },
+                    next: "black_council_diplomacy"
+                },
+                {
+                    text: "Command Daemon to activate his loyalists in the City Watch. The Gold Cloaks will seize the Red Keep and arrest the Green Council before dawn.",
+                    effects: "Effects: Gold Cloaks secure the capital. Blacks gain King's Landing and Driftmark resources. Greens flee to Oldtown. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'blacks', gold: 0 },
+                    territoryChanges: { blacks: ["King's Landing", "Driftmark"], removeNeutral: ["King's Landing", "Driftmark"] },
+                    next: "gold_cloak_coup"
+                }
+            ]
+        },
+        gold_cloak_coup: {
+            text: "The City Watch strikes with brutal efficiency. Otto Hightower and several Green loyalists are clapped in irons before they can leave the council room. However, Alicent, Aegon, and Aemond manage to slip away on dragonback alongside Ser Criston Cole, fleeing to Oldtown to rally the Reach. You hold the Iron Throne, but the war is far from over.",
+            choices: [
+                {
+                    text: "Summon the Black Council and send your envoys to secure the Great Houses.",
+                    effects: "Effects: -5,000 Gold. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'blacks', gold: -5000 },
+                    next: "black_council_diplomacy"
+                }
+            ]
+        },
+		black_council_diplomacy: {
+            text: "You must secure the realm before armies can march. The North, the Vale, and the Stormlands are critical. Jacaerys volunteers to fly north to the Vale and Winterfell. Lucerys volunteers to fly south to Storm's End. However, sending a young boy on a small dragon to treat with the notoriously proud Lord Borros Baratheon carries significant risks. Who will you send to the Stormlands?",
+            choices: [
+                {
+                    text: "Send Jacaerys North and Lucerys South. They are your sons and speak with your voice.",
+                    effects: "Effects: -5,000 Gold. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'blacks', gold: -5000 },
+                    next: "storms_end_luke"
+                },
+                {
+                    text: "Send Jacaerys North, but send Princess Rhaenys on Meleys to Storm's End. She is kin to Borros and rides a massive, seasoned dragon.",
+                    effects: "Effects: -5,000 Gold. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'blacks', gold: -5000 },
+                    next: "storms_end_rhaenys"
+                },
+                {
+                    text: "Send Jacaerys North, but send Daemon on Caraxes to Storm's End. He will force Borros into compliance through pure intimidation.",
+                    condition: (state) => !state.daemon_alienated,
+                    effects: "Effects: -5,000 Gold. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'blacks', gold: -5000 },
+                    next: "storms_end_daemon"
+                }
+            ]
+        },
+        storms_end_luke: {
+            text: "Ravens arrive from Jacaerys. The North and The Vale will honor their oaths to you. The Westerlands declare for Aegon. But tragic news comes from the south. Lucerys reached Storm's End only to find Aemond Targaryen there. Lord Borros Baratheon sided with the Greens. On the flight back, Vhagar attacked and killed Lucerys and his dragon, Arrax.",
+            choices: [
+                {
+                    text: "Collapse in grief. Let Daemon handle the retaliation.",
+                    effects: "Effects: -1 Dragon, -1 Rider. Greens secure Westerlands and Stormlands. Blacks secure North and Vale. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'mixed', b_dragons: -1, b_riders: -1 },
+                    territoryChanges: { blacks: ["The North", "The Vale"], greens: ["The Westerlands", "The Stormlands"], removeNeutral: ["The North", "The Vale", "The Westerlands", "The Stormlands"] },
+                    next: "blood_and_cheese"
+                }
+            ]
+        },
+        storms_end_rhaenys: {
+            text: "Jacaerys successfully secures the North and the Vale. The Westerlands declare for Aegon. At Storm's End, Rhaenys arrives to find Aemond Targaryen petitioning Borros. Aemond attempts to instigate a fight, but Meleys the Red Queen is far too large to risk an easy slaughter. Borros respects Rhaenys's strength and lineage, choosing to honor his father's oath to Rhaenyra.",
+            choices: [
+                {
+                    text: "Praise Rhaenys and prepare for the coming battles.",
+                    effects: "Effects: Blacks secure North, Vale, and Stormlands. Greens secure Westerlands. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'blacks', gold: 0 },
+                    territoryChanges: { blacks: ["The North", "The Vale", "The Stormlands"], greens: ["The Westerlands"], removeNeutral: ["The North", "The Vale", "The Westerlands", "The Stormlands"] },
+                    next: "war_council"
+                }
+            ]
+        },
+        storms_end_daemon: {
+            text: "Jacaerys successfully secures the North and the Vale. The Westerlands declare for Aegon. At Storm's End, Daemon arrives on Caraxes. Aemond is present, but Daemon's terrifying reputation forces Aemond to retreat rather than fight a confined battle. Daemon threatens to burn Storm's End to the foundations. Borros yields out of fear, but the Stormlords bitterly resent the insult.",
+            choices: [
+                {
+                    text: "Accept the foul allegiance and prepare for war.",
+                    effects: "Effects: Blacks secure North, Vale, and Stormlands. Greens secure Westerlands. -10,000 Black Smallfolk support (intimidation penalty). Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'blacks', smallfolk: -10000 },
+                    territoryChanges: { blacks: ["The North", "The Vale", "The Stormlands"], greens: ["The Westerlands"], removeNeutral: ["The North", "The Vale", "The Westerlands", "The Stormlands"] },
+                    next: "war_council"
+                }
+            ]
+        },
+        blood_and_cheese: {
+            text: "Daemon sends a raven: 'An eye for an eye, a son for a son.' Assassins infiltrate the enemy stronghold and murder Aegon's eldest son, Jaehaerys. The realm is horrified by the brutality.",
+            choices: [
+                {
+                    text: "Prepare for full-scale war. The dance of dragons has truly begun.",
+                    effects: "Effects: -50,000 Smallfolk (horrified by the war). Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'blacks', smallfolk: -50000 },
+                    next: "war_council"
+                }
+            ]
+        },
+		war_council: {
+            text: (state) => `The opening moves of the Dance have been played. The lines are drawn. ${state.greens.territories.includes("Oldtown") ? "The Hightower host is marshaling in Oldtown for the Greens." : "The enemy forces are gathering."} The Riverlands remain a fractured battleground. You must decide your grand strategy for the coming year.`,
+            choices: [
+                {
+                    text: "Call for baseborn dragonriders to claim the wild dragons on Dragonstone. The Sowing of the Seeds will bolster your air superiority.",
+                    effects: "Effects: Costs 20,000 Gold for bribes and feasts. High risk of casualties. Advances time 2 months.",
+                    timeAdvance: 2,
+                    impact: { type: 'blacks', gold: -20000 },
+                    setFlag: "sowing_completed",
+                    next: "the_sowing"
+                },
+                {
+                    text: "Launch a massive preemptive dragon strike directly on Oldtown to cripple the Hightower war effort before they march.",
+                    effects: "Effects: Extremely high risk. Could end the Hightower threat early or result in catastrophic dragon losses. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'blacks', gold: 0 },
+                    next: "strike_oldtown"
+                },
+                {
+                    text: "Order your Riverlands and Northern forces to invade the Westerlands and bleed the Lannisters dry.",
+                    effects: "Effects: Commits ground forces to a brutal land campaign. Advances time 3 months.",
+                    timeAdvance: 3,
+                    impact: { type: 'blacks', gold: 0 },
+                    next: "westerlands_invasion"
+                }
+            ]
+        },
+        the_sowing: {
+            text: "Scores of men and women attempt to claim the riderless dragons. Many are burned or eaten by the Cannibal. However, you successfully recruit Hugh Hammer to Vermithor, Ulf the White to Silverwing, Addam of Hull to Seasmoke, and Nettles to Sheepstealer. Your air power is now unmatched.",
+            choices: [
+                {
+                    text: (state) => `Use your new dragonriders to break the Green fleet at the Battle of the Gullet.`,
+                    effects: "Effects: +4 Riders. -5,000 Smallfolk (casualties). Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'blacks', riders: 4, smallfolk: -5000 },
+                    next: "battle_of_the_gullet"
+                }
+            ]
+        },
+        strike_oldtown: {
+            text: "You mount Syrax and lead Daemon, Rhaenys, and Jacaerys in a massive aerial bombardment of Oldtown. The Hightower garrison is caught completely unprepared. Daeron Targaryen attempts to defend the city on Tessarion, but he is overwhelmed by the sheer numbers of Black dragons. Tessarion is killed, and Oldtown surrenders.",
+            choices: [
+                {
+                    text: "Sack the city to fill your coffers, then install a loyal castellan.",
+                    effects: "Effects: Blacks secure Oldtown and The Reach. Greens lose Oldtown. -500,000 Smallfolk. Greens lose 1 Dragon and 1 Rider. Daeron neutralized. Advances time 2 months.",
+                    timeAdvance: 2,
+                    impact: { type: 'mixed', b_smallfolk: -500000, g_dragons: -1, g_riders: -1 },
+                    setFlag: "daeron_neutralized",
+                    territoryChanges: { blacks: ["Oldtown", "The Reach"], removeGreens: ["Oldtown"], removeNeutral: ["The Reach"] },
+                    next: "aftermath_oldtown"
+                },
+                {
+                    text: "Show mercy. Demand hostages and the immediate disarmament of the Reach armies.",
+                    effects: "Effects: Blacks secure Oldtown and The Reach. Greens lose Oldtown. Greens lose 1 Dragon and 1 Rider. Daeron neutralized. Advances time 2 months.",
+                    timeAdvance: 2,
+                    impact: { type: 'mixed', g_dragons: -1, g_riders: -1 },
+                    setFlag: "daeron_neutralized",
+                    territoryChanges: { blacks: ["Oldtown", "The Reach"], removeGreens: ["Oldtown"], removeNeutral: ["The Reach"] },
+                    next: "aftermath_oldtown"
+                }
+            ]
+        },
+        westerlands_invasion: {
+            text: "Securing the Riverlands as your staging ground, the Black armies bypass the Golden Tooth and pour into the Westerlands. Lord Jason Lannister is killed in the fighting. However, a massive Lannister host manages to regroup at Lannisport. The war turns into a brutal stalemate of sieges and burned farmlands.",
+            choices: [
+                {
+                    text: "Send a dragon to break the stalemate at Lannisport.",
+                    effects: "Effects: Blacks secure The Riverlands. -5,000 Black Troops. Greens lose -15,000 Troops. Advances time 2 months.",
+                    timeAdvance: 2,
+                    impact: { type: 'mixed', b_troops: -5000, g_troops: -15000 },
+                    territoryChanges: { blacks: ["The Riverlands"], removeNeutral: ["The Riverlands"] },
+                    next: "lannisport_siege"
+                },
+                {
+                    text: "Let the ground troops handle it. Keep your dragons in reserve for King's Landing.",
+                    effects: "Effects: Blacks secure The Riverlands. -15,000 Black Troops. Greens lose -10,000 Troops. Advances time 4 months.",
+                    timeAdvance: 4,
+                    impact: { type: 'mixed', b_troops: -15000, g_troops: -10000 },
+                    territoryChanges: { blacks: ["The Riverlands"], removeNeutral: ["The Riverlands"] },
+                    next: "westerlands_stalemate"
+                }
+            ]
+        },
+		battle_of_the_gullet: {
+            text: "The Triarchy fleet, hired by the Greens, attempts to break the Velaryon blockade. Your new dragonseeds rain fire upon them. The battle is a decisive victory, but Jacaerys flies Vermax too low. The dragon crashes into the sea, and Jacaerys is killed by crossbow fire.",
+            choices: [
+                {
+                    text: (state) => `Avenge your son. Order the execution of all Triarchy prisoners and prepare to march on ${state.greens.territories.includes("King's Landing") ? "King's Landing" : (state.greens.territories[0] || "the enemy stronghold")}.`,
+                    effects: "Effects: -1 Dragon, -1 Rider. Greens lose all remaining ships. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'mixed', b_dragons: -1, b_riders: -1 },
+                    customEffect: (state) => { state.greens.ships = 0; }, // Dynamically sets ships to zero
+                    next: "march_on_enemy_stronghold"
+                }
+            ]
+        },
+        aftermath_oldtown: {
+            text: (state) => `With Oldtown secured and the Reach neutralized, the Green war effort is severely crippled. However, ${state.aegon_surrendered ? "Aemond still holds" : "Aegon and Aemond still hold"} forces in the West, and Vhagar remains the largest threat in the world. Word arrives that Aemond is burning the Riverlands in retaliation for your strike on Oldtown.`,
+            choices: [
+                {
+                    text: "Send Daemon and Caraxes to hunt down Aemond in the Riverlands.",
+                    effects: "Effects: -100,000 Smallfolk (burned by Vhagar). Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'mixed', b_smallfolk: -100000 },
+                    next: "battle_above_gods_eye"
+                }
+            ]
+        },
+        lannisport_siege: {
+            text: "Your dragon bathes the Lannister defenses in fire. Lannisport falls, and Casterly Rock is besieged. The Westerlands are effectively knocked out of the war, but the long campaign has cost you valuable time and resources.",
+            choices: [
+                {
+                    text: (state) => `Turn your attention back to Aegon. It is time to march on ${state.greens.territories.includes("King's Landing") ? "King's Landing" : (state.greens.territories[0] || "the enemy stronghold")}.`,
+                    effects: "Effects: Blacks secure The Westerlands. Greens lose The Westerlands. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'blacks', gold: 0 },
+                    territoryChanges: { blacks: ["The Westerlands"], removeGreens: ["The Westerlands"], removeNeutral: ["The Westerlands"] },
+                    next: "march_on_enemy_stronghold"
+                }
+            ]
+        },
+        westerlands_stalemate: {
+            text: "Without dragon support, your army is slowly ground down by Lannister gold and mercenaries. The campaign is a disaster. Your northern forces are forced to retreat back into the Riverlands.",
+            choices: [
+                {
+                    text: (state) => `Abandon the western theater. You must focus your remaining strength on ${state.greens.territories.includes("King's Landing") ? "King's Landing" : (state.greens.territories[0] || "the enemy stronghold")}.`,
+                    effects: "Effects: -10,000 Black Troops. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'blacks', troops: -10000 },
+                    next: "march_on_enemy_stronghold"
+                }
+            ]
+        },
+battle_above_gods_eye: {
+            text: "Daemon waits at Harrenhal for Aemond. Eventually, Vhagar's massive shadow eclipses the sun. Aemond has arrived to end his uncle. This duel could decide the fate of the war.",
+            choices: [
+                {
+                    text: "Order Daemon to fight Aemond alone in a duel to the death.",
+                    effects: "Effects: Daemon and Aemond die. Caraxes and Vhagar are killed. Blacks secure the Riverlands. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'mixed', b_dragons: -1, b_riders: -1, g_dragons: -1, g_riders: -1 },
+                    territoryChanges: { blacks: ["The Riverlands"], removeNeutral: ["The Riverlands"] },
+                    customEffect: (state) => { state.aemond_dead = true; },
+                    next: (state) => {
+                        if (state.greens.territories.length > 0) return "war_council_late";
+                        return "total_victory";
+                    }
+                },
+                {
+                    text: "Send Nettles on Sheepstealer to ambush Aemond alongside Daemon.",
+                    condition: (state) => state.sowing_completed,
+                    effects: "Effects: Vhagar and Aemond are killed. Daemon and Nettles survive. -50,000 Smallfolk. Blacks secure the Riverlands. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'mixed', g_dragons: -1, g_riders: -1, b_smallfolk: -50000 },
+                    territoryChanges: { blacks: ["The Riverlands"], removeNeutral: ["The Riverlands"] },
+                    customEffect: (state) => { state.aemond_dead = true; },
+                    next: (state) => {
+                        if (state.greens.territories.length > 0) return "war_council_late";
+                        return "total_victory";
+                    }
+                }
+            ]
+        },
+        war_council_late: {
+            text: (state) => {
+                let claimant = (state.aegon_surrendered || state.aegon_dead) ? (state.daeron_neutralized ? "the remaining Green lords refuse to yield" : "Prince Daeron remains at large") : "Aegon remains at large";
+                return `With Vhagar dealt with, the Green cause is severely weakened, but the war is not won. Armies still march, and ${claimant}. You must reconvene your council.`;
+            },
+            choices: [
+                {
+                    text: "Return your focus to the main offensive strategy.",
+                    effects: "Effects: Returns to the assault on the enemy stronghold. Advances time 0 months.",
+                    timeAdvance: 0,
+                    impact: { type: 'blacks', gold: 0 },
+                    next: "march_on_enemy_stronghold"
+                }
+            ]
+        },
+        march_on_enemy_stronghold: {
+            text: (state) => `Your forces surround ${state.greens.territories.includes("King's Landing") ? "King's Landing" : (state.greens.territories[0] || "the final Green stronghold")}. The defenses are formidable, but you have overwhelming dragon superiority.${(state.sowing_completed && !state.dragonseeds_dealt_with) ? " Hugh Hammer and Ulf the White are eager to burn the gates." : ""}`,
+            choices: [
+                {
+                    text: "Unleash the dragons and breach the walls immediately.",
+                    effects: "Effects: +2,000,000 Gold. -200,000 Smallfolk. Greens lose stronghold. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'mixed', b_gold: 2000000, g_smallfolk: -200000 },
+                    customEffect: (state) => {
+                        let target = state.greens.territories.includes("King's Landing") ? "King's Landing" : state.greens.territories[0];
+                        if (target) {
+                            const gIndex = state.greens.territories.indexOf(target);
+                            if (gIndex > -1) {
+                                state.greens.territories.splice(gIndex, 1);
+                                if (typeof territoryStats !== 'undefined' && territoryStats[target]) {
+                                    state.greens.troops = Math.max(0, state.greens.troops - (territoryStats[target].troops || 0));
+                                    state.greens.ships = Math.max(0, state.greens.ships - (territoryStats[target].ships || 0));
+                                    state.greens.gold = Math.max(0, state.greens.gold - (territoryStats[target].gold || 0));
+                                    state.greens.smallfolk = Math.max(0, state.greens.smallfolk - (territoryStats[target].smallfolk || 0));
+                                }
+                            }
+                            const nIndex = state.neutralTerritories.indexOf(target);
+                            if (nIndex > -1) state.neutralTerritories.splice(nIndex, 1);
+                            if (!state.blacks.territories.includes(target)) {
+                                state.blacks.territories.push(target);
+                                if (typeof territoryStats !== 'undefined' && territoryStats[target]) {
+                                    state.blacks.troops += territoryStats[target].troops || 0;
+                                    state.blacks.ships += territoryStats[target].ships || 0;
+                                    state.blacks.gold += territoryStats[target].gold || 0;
+                                    state.blacks.smallfolk += territoryStats[target].smallfolk || 0;
+                                }
+                            }
+                        }
+                    },
+                    next: (state) => {
+                        if (state.sowing_completed && !state.dragonseeds_dealt_with) return "dragonseed_demands";
+                        if (!state.shepherd_dealt_with) return "the_shepherd_arises";
+                        if (!state.dragonstone_dealt_with) {
+                            if (state.aegon_surrendered && state.daeron_neutralized) {
+                                state.dragonstone_dealt_with = true; 
+                            } else {
+                                return "final_threat_emerges";
+                            }
+                        }
+                        if (!state.aemond_dead) return "aemond_takes_command";
+                        if (state.greens.territories.length > 0) return "war_council_late";
+                        return "total_victory";
+                    }
+                },
+                {
+                    text: "Blockade the city and starve them into surrendering.",
+                    effects: "Effects: +2,000,000 Gold. -50,000 Smallfolk. Greens lose stronghold. Advances time 6 months.",
+                    timeAdvance: 6,
+                    impact: { type: 'mixed', b_gold: 2000000, g_smallfolk: -50000 },
+                    customEffect: (state) => {
+                        let target = state.greens.territories.includes("King's Landing") ? "King's Landing" : state.greens.territories[0];
+                        if (target) {
+                            const gIndex = state.greens.territories.indexOf(target);
+                            if (gIndex > -1) {
+                                state.greens.territories.splice(gIndex, 1);
+                                if (typeof territoryStats !== 'undefined' && territoryStats[target]) {
+                                    state.greens.troops = Math.max(0, state.greens.troops - (territoryStats[target].troops || 0));
+                                    state.greens.ships = Math.max(0, state.greens.ships - (territoryStats[target].ships || 0));
+                                    state.greens.gold = Math.max(0, state.greens.gold - (territoryStats[target].gold || 0));
+                                    state.greens.smallfolk = Math.max(0, state.greens.smallfolk - (territoryStats[target].smallfolk || 0));
+                                }
+                            }
+                            const nIndex = state.neutralTerritories.indexOf(target);
+                            if (nIndex > -1) state.neutralTerritories.splice(nIndex, 1);
+                            if (!state.blacks.territories.includes(target)) {
+                                state.blacks.territories.push(target);
+                                if (typeof territoryStats !== 'undefined' && territoryStats[target]) {
+                                    state.blacks.troops += territoryStats[target].troops || 0;
+                                    state.blacks.ships += territoryStats[target].ships || 0;
+                                    state.blacks.gold += territoryStats[target].gold || 0;
+                                    state.blacks.smallfolk += territoryStats[target].smallfolk || 0;
+                                }
+                            }
+                        }
+                    },
+                    next: (state) => {
+                        if (state.sowing_completed && !state.dragonseeds_dealt_with) return "dragonseed_demands";
+                        if (!state.shepherd_dealt_with) return "the_shepherd_arises";
+                        if (!state.dragonstone_dealt_with) {
+                            if (state.aegon_surrendered && state.daeron_neutralized) {
+                                state.dragonstone_dealt_with = true;
+                            } else {
+                                return "final_threat_emerges";
+                            }
+                        }
+                        if (!state.aemond_dead) return "aemond_takes_command";
+                        if (state.greens.territories.length > 0) return "war_council_late";
+                        return "total_victory";
+                    }
+                }
+            ]
+        },
+dragonseed_demands: {
+            text: (state) => {
+                const westerlandsHostile = state.greens.territories.includes("The Westerlands");
+                const stormlandsHostile = state.greens.territories.includes("The Stormlands");
+                
+                let context = "";
+                if (westerlandsHostile || stormlandsHostile) {
+                    context = "They want you to legally strip the rebel Lannisters and Baratheons of their titles, granting them the royal warrant to conquer and keep those Green territories for themselves.";
+                } else {
+                    context = "Even though your forces have already bled to pacify those regions, they want you to strip the ancestral lords of their rights and hand the castles over to them.";
+                }
+                
+                return `With the stronghold taken, you sit in command. However, Hugh Hammer and Ulf the White approach. Drunk on their own power, they demand to be named Lords of Casterly Rock and Storm's End. ${context}`;
+            },
+            choices: [
+                {
+                    text: "Grant them the titles. You need their dragons.",
+                    effects: "Effects: -20,000 Black Troops (loyal lords abandon you in disgust). Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'blacks', troops: -20000 },
+                    customEffect: (state) => { state.dragonseeds_dealt_with = true; },
+                    next: (state) => {
+                        if (!state.shepherd_dealt_with) return "the_shepherd_arises";
+                        if (!state.dragonstone_dealt_with) {
+                            if (state.aegon_surrendered && state.daeron_neutralized) {
+                                state.dragonstone_dealt_with = true;
+                            } else {
+                                return "final_threat_emerges";
+                            }
+                        }
+                        if (!state.aemond_dead) return "aemond_takes_command";
+                        if (state.greens.territories.length > 0) return "war_council_late";
+                        return "total_victory";
+                    }
+                },
+                {
+                    text: "Refuse and have them arrested by the guards immediately.",
+                    effects: "Effects: Bloody skirmish. -2 Riders, -2 Dragons (Hugh and Ulf killed, their dragons flee). -500 Troops. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'blacks', riders: -2, dragons: -2, troops: -500 },
+                    customEffect: (state) => { state.dragonseeds_dealt_with = true; },
+                    next: (state) => {
+                        if (!state.shepherd_dealt_with) return "the_shepherd_arises";
+                        if (!state.dragonstone_dealt_with) {
+                            if (state.aegon_surrendered && state.daeron_neutralized) {
+                                state.dragonstone_dealt_with = true;
+                            } else {
+                                return "final_threat_emerges";
+                            }
+                        }
+                        if (!state.aemond_dead) return "aemond_takes_command";
+                        if (state.greens.territories.length > 0) return "war_council_late";
+                        return "total_victory";
+                    }
+                },
+                {
+                    text: "Refuse, and order the arrest of all baseborn dragonriders—including Addam Velaryon—fearing a wider conspiracy.",
+                    effects: "Effects: Hugh and Ulf fight back and die (-2 Dragons, -2 Riders). Lord Corlys warns Addam, who flees on Seasmoke (-1 Dragon, -1 Rider). You arrest Corlys for treason. Outraged, the Velaryon fleet abandons you. Blacks lose Driftmark. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'blacks', dragons: -3, riders: -3 },
+                    customEffect: (state) => { 
+                        state.dragonseeds_dealt_with = true;
+                        
+                        // Execute the Velaryon betrayal
+                        const dIndex = state.blacks.territories.indexOf("Driftmark");
+                        if (dIndex > -1) {
+                            state.blacks.territories.splice(dIndex, 1);
+                            if (!state.neutralTerritories.includes("Driftmark")) {
+                                state.neutralTerritories.push("Driftmark");
+                            }
+                            if (typeof territoryStats !== 'undefined' && territoryStats["Driftmark"]) {
+                                state.blacks.troops = Math.max(0, state.blacks.troops - (territoryStats["Driftmark"].troops || 0));
+                                state.blacks.ships = Math.max(0, state.blacks.ships - (territoryStats["Driftmark"].ships || 0));
+                                state.blacks.gold = Math.max(0, state.blacks.gold - (territoryStats["Driftmark"].gold || 0));
+                                state.blacks.smallfolk = Math.max(0, state.blacks.smallfolk - (territoryStats["Driftmark"].smallfolk || 0));
+                            }
+                        }
+                    },
+                    next: (state) => {
+                        if (!state.shepherd_dealt_with) return "the_shepherd_arises";
+                        if (!state.dragonstone_dealt_with) {
+                            if (state.aegon_surrendered && state.daeron_neutralized) {
+                                state.dragonstone_dealt_with = true;
+                            } else {
+                                return "final_threat_emerges";
+                            }
+                        }
+                        if (!state.aemond_dead) return "aemond_takes_command";
+                        if (state.greens.territories.length > 0) return "war_council_late";
+                        return "total_victory";
+                    }
+                }
+            ]
+        },
+		the_shepherd_arises: {
+            text: (state) => `The war has devastated the realm. A one-handed prophet known as the Shepherd begins preaching against dragons, calling them demons. A massive mob of smallfolk is gathering, intent on marching to slaughter your chained dragons. Your current Smallfolk support is ${state.blacks.smallfolk.toLocaleString()}.`,
+            choices: [
+                {
+                    text: "Mount Syrax and burn the mob before they reach the dragons.",
+                    effects: "Effects: -100,000 Smallfolk. Prevents the death of the pit dragons. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'blacks', smallfolk: -100000 },
+                    customEffect: (state) => { state.shepherd_dealt_with = true; },
+                    next: (state) => {
+                        if (!state.dragonstone_dealt_with) {
+                            if (state.aegon_surrendered && state.daeron_neutralized) {
+                                state.dragonstone_dealt_with = true;
+                            } else {
+                                return "final_threat_emerges";
+                            }
+                        }
+                        if (!state.aemond_dead) return "aemond_takes_command";
+                        if (state.greens.territories.length > 0) return "war_council_late";
+                        return "total_victory";
+                    }
+                },
+                {
+                    text: "Send the guards to disperse them. When the mob breaks through, your son Joffrey tries to mount Syrax to save the others but falls to his death. Broken by grief, you flee King's Landing for Dragonstone.",
+                    effects: "Effects: The mob storms the pit. -4 Dragons, -1 Rider (Joffrey). King's Landing falls into anarchy and becomes Neutral territory. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'blacks', dragons: -4, riders: -1 },
+                    customEffect: (state) => { 
+                        state.shepherd_dealt_with = true; 
+                        const klIndex = state.blacks.territories.indexOf("King's Landing");
+                        if (klIndex > -1) {
+                            state.blacks.territories.splice(klIndex, 1);
+                            if (!state.neutralTerritories.includes("King's Landing")) {
+                                state.neutralTerritories.push("King's Landing");
+                            }
+                            if (typeof territoryStats !== 'undefined' && territoryStats["King's Landing"]) {
+                                state.blacks.troops = Math.max(0, state.blacks.troops - (territoryStats["King's Landing"].troops || 0));
+                                state.blacks.ships = Math.max(0, state.blacks.ships - (territoryStats["King's Landing"].ships || 0));
+                                state.blacks.gold = Math.max(0, state.blacks.gold - (territoryStats["King's Landing"].gold || 0));
+                                state.blacks.smallfolk = Math.max(0, state.blacks.smallfolk - (territoryStats["King's Landing"].smallfolk || 0));
+                            }
+                        }
+                    },
+                    next: (state) => {
+                        if (!state.dragonstone_dealt_with) {
+                            if (state.aegon_surrendered && state.daeron_neutralized) {
+                                state.dragonstone_dealt_with = true;
+                            } else {
+                                return "final_threat_emerges";
+                            }
+                        }
+                        if (!state.aemond_dead) return "aemond_takes_command";
+                        if (state.greens.territories.length > 0) return "war_council_late";
+                        return "total_victory";
+                    }
+                }
+            ]
+        },
+        final_threat_emerges: {
+            text: (state) => `Reports arrive from Dragonstone. ${state.aegon_surrendered ? "Prince Daeron, having bypassed your blockade" : "Aegon II Targaryen, who had been missing since the fall of the capital"}, has secretly taken your home island with the help of turncloak guards. He demands your immediate surrender.`,
+            choices: [
+                {
+                    text: (state) => `Fly to Dragonstone to face ${state.aegon_surrendered ? "Daeron" : "your half-brother"} yourself.`,
+                    effects: "Effects: Greens secure Dragonstone. Blacks lose Dragonstone. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'blacks', gold: 0 },
+                    territoryChanges: { greens: ["Dragonstone"], removeBlacks: ["Dragonstone"] },
+                    next: "final_confrontation"
+                },
+                {
+                    text: "Send your remaining fleet to blockade Dragonstone and starve him out.",
+                    effects: "Effects: Greens secure Dragonstone. Blacks lose Dragonstone. Advances time 3 months.",
+                    timeAdvance: 3,
+                    impact: { type: 'blacks', gold: 0 },
+                    territoryChanges: { greens: ["Dragonstone"], removeBlacks: ["Dragonstone"] },
+                    next: "prolonged_siege"
+                }
+            ]
+        },
+		final_confrontation: {
+            text: (state) => `You arrive at Dragonstone on Syrax. ${state.aegon_surrendered ? "Daeron rides out on Tessarion" : "Aegon II rides out on a maimed but fierce Sunfyre"}. The two dragons clash in the skies above the Dragonmont. The battle is brutal and desperate.`,
+            choices: [
+                {
+                    text: "Fight to the bitter end.",
+                    effects: "Effects: Both dragons are mortally wounded. Syrax falls. The enemy dragon is crippled. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'mixed', b_dragons: -1, b_riders: -1, g_dragons: -1 },
+                    next: "the_fall_of_monarchs"
+                },
+                {
+                    text: "Attempt to evade the enemy dragon and escape to the mainland.",
+                    effects: "Effects: Syrax is caught and killed. You are executed. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'mixed', b_dragons: -1, b_riders: -1 },
+                    next: "rhaenyra_dies_new_leader"
+                }
+            ]
+        },
+        the_fall_of_monarchs: {
+            text: (state) => `Syrax crashes to the earth, dead. You survive the fall but are captured by the enemy. ${state.aegon_surrendered ? "Daeron" : "Aegon himself"} is horribly burned and permanently crippled, his dragon dying from its wounds. He orders your execution, but your loyalists, including the arriving Northern army led by Cregan Stark, breach the castle gates just in time.`,
+            choices: [
+                {
+                    text: (state) => `Order Cregan Stark to execute ${state.aegon_surrendered ? "Daeron" : "Aegon"} and secure the castle.`,
+                    effects: "Effects: The rival claimant dies. Greens lose 1 Rider. Blacks secure Dragonstone. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'mixed', g_riders: -1 },
+                    territoryChanges: { blacks: ["Dragonstone"], removeGreens: ["Dragonstone"] },
+                    customEffect: (state) => {
+                        state.aegon_dead = true;
+                        state.daeron_neutralized = true;
+                        state.dragonstone_dealt_with = true;
+                    },
+                    next: (state) => {
+                        if (!state.aemond_dead) return "aemond_takes_command";
+                        if (state.greens.territories.length > 0) return "war_council_late";
+                        return "total_victory";
+                    }
+                }
+            ]
+        },
+		rhaenyra_dies_new_leader: {
+            text: (state) => `Syrax is torn from the sky. You survive the fall, only to be captured. ${state.aegon_surrendered ? "Daeron" : "Aegon II"} shows no mercy and has his dragon devour you. You, Rhaenyra Targaryen, are dead. However, the Black faction lives on. Your loyalists spirit your son, Aegon the Younger, to safety and crown him as the new Black leader.`,
+            choices: [
+                {
+                    text: "Watch from the heavens as your son's forces avenge you.",
+                    effects: "Effects: The Black armies, led by Cregan Stark, continue the war in Aegon III's name. Blacks secure Dragonstone. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'blacks', gold: 0 },
+                    territoryChanges: { blacks: ["Dragonstone"], removeGreens: ["Dragonstone"] },
+                    customEffect: (state) => {
+                        state.aegon_dead = true;
+                        state.daeron_neutralized = true;
+                        state.dragonstone_dealt_with = true;
+                    },
+                    next: (state) => {
+                        if (!state.aemond_dead) return "aemond_takes_command";
+                        if (state.greens.territories.length > 0) return "war_council_late";
+                        return "victory_aegon_iii";
+                    }
+                }
+            ]
+        },
+        victory_aegon_iii: {
+            text: (state) => `Despite your death, the war is won. The Black armies crush the remaining Green forces. ${state.aegon_surrendered ? "Daeron" : "Aegon II"} is murdered by his own men. Your son ascends the Iron Throne as King Aegon III Targaryen, reuniting the realm. You gave your life, but your bloodline secures the dynasty.`,
+            choices: [
+                {
+                    text: "Start a new game.",
+                    effects: "Restarts the timeline.",
+                    resetGame: true
+                }
+            ]
+        },
+        prolonged_siege: {
+            text: (state) => `The Velaryon fleet cuts off all supplies to Dragonstone. ${state.aegon_surrendered ? "Daeron" : "Aegon II"} is trapped. Meanwhile, Dalton Greyjoy, the Red Kraken, offers the iron fleet to the Blacks in exchange for the right to reave the Westerlands freely.`,
+            choices: [
+                {
+                    text: "Accept the Red Kraken's terms.",
+                    effects: "Effects: Blacks secure The Iron Islands (+20,000 Troops, +400 Ships). The Westerlands are devastated. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'mixed', b_troops: 20000, b_ships: 400, g_smallfolk: -200000 },
+                    territoryChanges: { blacks: ["The Iron Islands"], removeNeutral: ["The Iron Islands"] },
+                    next: "final_desperation"
+                },
+                {
+                    text: "Refuse the ironmen. You will not unleash reavers on your own kingdom.",
+                    effects: "Effects: The Iron Islands remain neutral. The enemy forces slowly starve. Advances time 2 months.",
+                    timeAdvance: 2,
+                    impact: { type: 'blacks', gold: 0 },
+                    next: "final_desperation"
+                }
+            ]
+        },
+        final_desperation: {
+            text: (state) => `Starving and with no hope of reinforcement, ${state.aegon_surrendered ? "Daeron's" : "Aegon's"} own men turn on him. He is found dead in his quarters, murdered by his own council to end the suffering. The gates of Dragonstone are opened to your forces.`,
+            choices: [
+                {
+                    text: "Reclaim Dragonstone.",
+                    effects: "Effects: Blacks regain Dragonstone. Greens lose 1 Rider and 1 Dragon. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'mixed', g_dragons: -1, g_riders: -1 },
+                    territoryChanges: { blacks: ["Dragonstone"], removeGreens: ["Dragonstone"] },
+                    customEffect: (state) => {
+                        state.aegon_dead = true;
+                        state.daeron_neutralized = true;
+                        state.dragonstone_dealt_with = true;
+                    },
+                    next: (state) => {
+                        if (!state.aemond_dead) return "aemond_takes_command";
+                        if (state.greens.territories.length > 0) return "war_council_late";
+                        return "total_victory";
+                    }
+                }
+            ]
+        },
+		aemond_takes_command: {
+            text: (state) => `You have eliminated the claimant on Dragonstone, but the victory is hollow. The Greens have not surrendered. Prince Aemond Targaryen, ${state.greens.troops > 0 ? `still commanding Vhagar and a host of ${state.greens.troops.toLocaleString()} men` : `isolated but still commanding the largest dragon in the world, Vhagar`}, has crowned himself King. As long as he and his dragons live, the war continues.`,
+            choices: [
+                {
+                    text: "Send Daemon and Caraxes to hunt down Aemond.",
+                    effects: "Effects: Initiates the Battle Above the Gods Eye. Advances time 1 month.",
+                    timeAdvance: 1,
+                    impact: { type: 'mixed', b_smallfolk: -100000 },
+                    next: "battle_above_gods_eye"
+                }
+            ]
+        },
+        victory_hour_of_the_wolf: {
+            text: (state) => `With ${state.aegon_surrendered ? "Daeron" : "Aegon II"} dead, Cregan Stark briefly takes control of King's Landing to punish those who prolonged the war, an event known as the Hour of the Wolf. The remaining Greens surrender. You have won the Dance of the Dragons, preserving the Targaryen dynasty.`,
+            choices: [
+                {
+                    text: "Start a new game.",
+                    effects: "Restarts the timeline.",
+                    resetGame: true
+                }
+            ]
+        },
+        victory_peace: {
+            text: (state) => `Your blockade succeeded. ${state.aegon_surrendered ? "Daeron" : "Aegon II"} is dead, and the Green faction collapses. You have won the Dance of the Dragons, preserving the Targaryen dynasty, though the realm will take decades to heal from the scars of the civil war.`,
+            choices: [
+                {
+                    text: "Start a new game.",
+                    effects: "Restarts the timeline.",
+                    resetGame: true
+                }
+            ]
+        },
+        total_victory: {
+            text: (state) => `With Aemond dead, Daeron neutralized, ${(state.aegon_surrendered && !state.aegon_dead) ? "Aegon peacefully surrendered" : "Aegon executed"}, and the final Green stronghold captured, there are no rival claimants left to challenge you. The Green faction completely dissolves. The lords of Westeros bend the knee to Queen Rhaenyra Targaryen, First of Her Name. You have won the Dance of the Dragons without destroying the realm or your family's legacy.`,
+            choices: [
+                {
+                    text: "Start a new game.",
+                    effects: "Restarts the timeline.",
+                    resetGame: true
+                }
+            ]
+        }
+    };
+	
+    function updateUI() {
+        document.getElementById('time-display').innerText = `Year: ${state.year} AC | Month: ${state.month}`;
+        
+        const renderStats = (faction) => `
+            <div>Dragons: ${faction.dragons}</div>
+            <div>Riders: ${faction.riders}</div>
+            <div>Troops: ${faction.troops.toLocaleString()}</div>
+            <div>Ships: ${faction.ships.toLocaleString()}</div>
+            <div>Gold: ${faction.gold.toLocaleString()}</div>
+            <div>Smallfolk: ${faction.smallfolk.toLocaleString()}</div>
+        `;
+        
+        document.getElementById('blacks-stats').innerHTML = renderStats(state.blacks);
+        document.getElementById('greens-stats').innerHTML = renderStats(state.greens);
+
+        const renderMap = (factionTerritories, colorClass) => {
+            if (!factionTerritories || factionTerritories.length === 0) return `<div>None</div>`;
+            return factionTerritories.map(t => `<div class="region ${colorClass}">${t}</div>`).join('');
+        };
+        
+        document.getElementById('blacks-map').innerHTML = renderMap(state.blacks.territories, 'black');
+        document.getElementById('greens-map').innerHTML = renderMap(state.greens.territories, 'green');
+        document.getElementById('neutral-map').innerHTML = renderMap(state.neutralTerritories, 'neutral');
+    }
+
+function loadScene(sceneId) {
+        currentSceneId = sceneId;
+        const scene = scenes[sceneId];
+        
+        document.getElementById('story-text').innerText = typeof scene.text === 'function' ? scene.text(state) : scene.text;
+        
+        const choicesContainer = document.getElementById('choices-container');
+        choicesContainer.innerHTML = '';
+        
+        scene.choices.forEach(choice => {
+            if (choice.condition && !choice.condition(state)) return;
+            
+            const btn = document.createElement('button');
+            const choiceText = typeof choice.text === 'function' ? choice.text(state) : choice.text;
+            btn.innerHTML = `<strong>${choiceText}</strong><span class="effect-text">${choice.effects}</span>`;
+            btn.onclick = () => applyChoice(choice);
+            choicesContainer.appendChild(btn);
+        });
+    }
+
+function applyChoice(choice) {
+        if (choice.resetGame) {
+            state = JSON.parse(JSON.stringify(initialState));
+            updateUI();
+            loadScene("start");
+            return;
+        }
+
+        if (choice.impact && choice.impact.type === 'blacks') {
+            for (let key in choice.impact) {
+                if (key !== 'type' && state.blacks[key] !== undefined) {
+                    state.blacks[key] += choice.impact[key];
+                }
+            }
+        } else if (choice.impact && choice.impact.type === 'mixed') {
+            if (choice.impact.b_ships !== undefined) state.blacks.ships += choice.impact.b_ships;
+            if (choice.impact.b_troops !== undefined) state.blacks.troops += choice.impact.b_troops;
+            if (choice.impact.b_gold !== undefined) state.blacks.gold += choice.impact.b_gold;
+            if (choice.impact.b_smallfolk !== undefined) state.blacks.smallfolk += choice.impact.b_smallfolk;
+            if (choice.impact.b_dragons !== undefined) state.blacks.dragons += choice.impact.b_dragons;
+            if (choice.impact.b_riders !== undefined) state.blacks.riders += choice.impact.b_riders;
+            
+            if (choice.impact.g_troops !== undefined) state.greens.troops += choice.impact.g_troops;
+            if (choice.impact.g_smallfolk !== undefined) state.greens.smallfolk += choice.impact.g_smallfolk;
+            if (choice.impact.g_gold !== undefined) state.greens.gold += choice.impact.g_gold;
+            if (choice.impact.g_ships !== undefined) state.greens.ships += choice.impact.g_ships;
+            if (choice.impact.g_dragons !== undefined) state.greens.dragons += choice.impact.g_dragons;
+            if (choice.impact.g_riders !== undefined) state.greens.riders += choice.impact.g_riders;
+        }
+
+        if (choice.customEffect) {
+            choice.customEffect(state);
+        }
+
+        if (choice.setFlag) {
+            state[choice.setFlag] = true;
+        }
+        
+
+        if (choice.territoryChanges) {
+            if (choice.territoryChanges.removeGreens) {
+                choice.territoryChanges.removeGreens.forEach(t => {
+                    const index = state.greens.territories.indexOf(t);
+                    if (index > -1) {
+                        state.greens.territories.splice(index, 1);
+                        if (territoryStats[t]) {
+                            state.greens.troops = Math.max(0, state.greens.troops - (territoryStats[t].troops || 0));
+                            state.greens.ships = Math.max(0, state.greens.ships - (territoryStats[t].ships || 0));
+                            state.greens.gold = Math.max(0, state.greens.gold - (territoryStats[t].gold || 0));
+                            state.greens.smallfolk = Math.max(0, state.greens.smallfolk - (territoryStats[t].smallfolk || 0));
+                        }
+                    }
+                });
+            }
+            if (choice.territoryChanges.removeBlacks) {
+                choice.territoryChanges.removeBlacks.forEach(t => {
+                    const index = state.blacks.territories.indexOf(t);
+                    if (index > -1) {
+                        state.blacks.territories.splice(index, 1);
+                        if (territoryStats[t]) {
+                            state.blacks.troops = Math.max(0, state.blacks.troops - (territoryStats[t].troops || 0));
+                            state.blacks.ships = Math.max(0, state.blacks.ships - (territoryStats[t].ships || 0));
+                            state.blacks.gold = Math.max(0, state.blacks.gold - (territoryStats[t].gold || 0));
+                            state.blacks.smallfolk = Math.max(0, state.blacks.smallfolk - (territoryStats[t].smallfolk || 0));
+                        }
+                    }
+                });
+            }
+            if (choice.territoryChanges.blacks) {
+                choice.territoryChanges.blacks.forEach(t => {
+                    if (!state.blacks.territories.includes(t)) {
+                        state.blacks.territories.push(t);
+                        if (territoryStats[t]) {
+                            state.blacks.troops += territoryStats[t].troops || 0;
+                            state.blacks.ships += territoryStats[t].ships || 0;
+                            state.blacks.gold += territoryStats[t].gold || 0;
+                            state.blacks.smallfolk += territoryStats[t].smallfolk || 0;
+                        }
+                    }
+                });
+            }
+            if (choice.territoryChanges.greens) {
+                choice.territoryChanges.greens.forEach(t => {
+                    if (!state.greens.territories.includes(t)) {
+                        state.greens.territories.push(t);
+                        if (territoryStats[t]) {
+                            state.greens.troops += territoryStats[t].troops || 0;
+                            state.greens.ships += territoryStats[t].ships || 0;
+                            state.greens.gold += territoryStats[t].gold || 0;
+                            state.greens.smallfolk += territoryStats[t].smallfolk || 0;
+                        }
+                    }
+                });
+            }
+            if (choice.territoryChanges.removeNeutral) {
+                state.neutralTerritories = state.neutralTerritories.filter(t => !choice.territoryChanges.removeNeutral.includes(t));
+            }
+        }
+
+if (choice.timeAdvance) {
+            state.month += choice.timeAdvance;
+            if (state.month > 12) {
+                state.year += Math.floor((state.month - 1) / 12);
+                state.month = ((state.month - 1) % 12) + 1;
+            }
+        }
+
+        updateUI();
+        
+        // DYNAMIC ROUTING UPGRADE
+        let nextSceneId = typeof choice.next === 'function' ? choice.next(state) : choice.next;
+        if (nextSceneId) {
+            loadScene(nextSceneId);
+        }
+    }
+	
+    function newGame() {
+        if(confirm("Are you sure you want to start a new game? Any unsaved progress will be lost.")) {
+            state = JSON.parse(JSON.stringify(initialState));
+            updateUI();
+            loadScene('start');
+        }
+    }
+
+    function saveGame() {
+        const saveData = {
+            state: state,
+            sceneId: currentSceneId
+        };
+        localStorage.setItem('dotd_savegame', JSON.stringify(saveData));
+        alert("Game saved successfully.");
+    }
+
+    function loadGame() {
+        const savedData = localStorage.getItem('dotd_savegame');
+        if (savedData) {
+            const parsedData = JSON.parse(savedData);
+            state = parsedData.state;
+            updateUI();
+            loadScene(parsedData.sceneId);
+            alert("Game loaded successfully.");
+        } else {
+            alert("No saved game found.");
+        }
+    }
+
+    updateUI();
+    loadScene('start');
+</script>
+
+</body>
+</html>
